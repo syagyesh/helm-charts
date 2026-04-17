@@ -1,0 +1,18 @@
+apiVersion: v1
+entries:
+  alloy-loki-stack:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2026-04-17T22:54:58.229922+05:30"
+    dependencies:
+    - name: alloy
+      repository: https://grafana.github.io/helm-charts
+      version: '*'
+    description: Alloy + Loki stack with S3 storage
+    digest: a5a731b49dcdf884fed626a42ba80c3b0f5fd2ddfe3536aced2c8766d07b07de
+    name: alloy-loki-stack
+    type: application
+    urls:
+    - https://syagyesh.github.io/helm-charts/alloy-loki-stack-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-04-17T22:54:58.224303+05:30"
