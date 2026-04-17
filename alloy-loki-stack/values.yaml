@@ -1,0 +1,103 @@
+namespace: insights
+
+alloy:
+  enabled: true
+
+  configMap:
+    create: true
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
+          separator     = "/"
+          target_label  = "job"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          action        = "replace"
+          replacement   = "/var/log/pods/*$1/*.log"
+          target_label  = "__path__"
+        }
+        rule {
+          action = "replace"
+          source_labels = ["__meta_kubernetes_pod_container_id"]
+          regex = "^(\\w+):\\/\\/.+$"
+          replacement = "$1"
+          target_label = "tmp_container_runtime"
+        }
+      }
+
+      local.file_match "pod_logs" {
+        path_targets = discovery.relabel.pod_logs.output
+      }
+
+      loki.source.file "pod_logs" {
+        targets    = local.file_match.pod_logs.targets
+        forward_to = [loki.process.pod_logs.receiver]
+      }
+
+      loki.process "pod_logs" {
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      loki.write "loki" {
+        endpoint {
+          url = "{{ .Values.loki.serviceUrl }}"
+        }
+      }
+
+  mounts:
+    varlog: true
+
+
+loki:
+  image: grafana/loki:2.9.2
+  serviceUrl: http://loki:3100/loki/api/v1/push
+
+  storage:
+    size: 5Gi
+    storageClass: wasabi-juicefs
+
+  s3:
+    bucket: slpl-loki-logs
+    endpoint: s3.ap-southeast-1.wasabisys.com
+    region: ap-southeast-1
+    accessKey: ""
+    secretKey: ""
+
+  retention:
+    default: 168h
+
+    priorityNamespaces:
+      - name: tfiprod
+        period: 720h
+      - name: prodmongo44
+        period: 720h
+      - name: yokogawa
+        period: 720h
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
